@@ -1,7 +1,7 @@
 ---
-title: <green>Optimization in R with mrgsolve</green>
-author: University at Buffalo CDSE Days 2019
-date: <blu>Kyle Baron & Timothy Knab / MetrumRG</blu>
+title: "A workflow in R for PK and PBPK modeling: simulation, optimization, and visualization"
+author: R/Pharma 2020 Workshop
+date: <blu>Kyle Baron & Devin Pastoor / MetrumRG</blu>
 ---
 
 ```{r, echo = FALSE, message = FALSE, warning = FALSE}
@@ -18,21 +18,12 @@ library(lattice)
 
 ```
 
-# Thanks for inviting us back!
-
-
-__Case studies with mrgsolve: PBPK and QSP model implementation and utilization 
-in  R __
-
-https://github.com/metrumresearchgroup/pbpk-qsp-mrgsolve
-
-CDSE Days 2018
 
 # Optimization in R with mrgsolve
 
 <hr>
 
-https://github.com/metrumresearchgroup/ub-cdse-2019
+https://github.com/metrumresearchgroup/r-pharma-pkpd-2020
 
 <hr>
 
@@ -132,7 +123,7 @@ of random effects (no IIV)
 <img src = "../images/setup4.png" width = "1024px"></img>
 
 
-# Wonderful options for optimization in R
+# Many options for optimization in R
 
 CRAN Task View: https://cran.r-project.org/web/views/Optimization.html
 
