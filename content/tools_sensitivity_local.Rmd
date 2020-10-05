@@ -5,7 +5,7 @@ date: ""
 ---
 
 
-```{r}
+```{r, warning = FALSE, message = FALSE}
 library(tidyverse)
 library(mrgsolve)
 library(FME)
@@ -30,9 +30,9 @@ output `y`?
 
 ## Load the model
 
-```{r}
+```{r, warning = FALSE, message = FALSE}
 mod <- mread_cache("model/yoshikado.cpp")
-mod <- update(mod, end = 12, delta = 0.5, atol=1E-12,rtol=1E-12)
+mod <- update(mod, end = 12, delta = 0.025, atol=1E-12,rtol=1E-12)
 ```
 
 ## Load a data set
@@ -46,7 +46,7 @@ dose <- filter(data, evid==1)
 
 Statin / cyclosporine DDI
 ```{r}
-mod %>% mrgsim_d(dose,delta=0.1) %>% plot(CP~time)
+mod %>% mrgsim_d(dose,delta=0.025) %>% plot(CP~time)
 ```
 
 ## Define a function for sensitivity analysis
