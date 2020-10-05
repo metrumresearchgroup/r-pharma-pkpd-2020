@@ -5,3 +5,7 @@
 content/PSO.out
 renv/library
 content/build
+content/*.html
+content/*_cache/
+content/*_files/
+.DS_Store

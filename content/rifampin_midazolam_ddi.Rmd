@@ -1,0 +1,231 @@
+---
+title: "Rifampicin PBPK Model to Predict Complex DDIs"
+author: "Metrum Research Group"
+date: ""
+output: 
+  html_document: 
+    highlight: pygments
+    toc: true
+    number_sections: true
+    css: styles/styles.css
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, comment = '.', warning = FALSE, 
+                      cache = TRUE, autodep = TRUE, message = FALSE)
+options(mrgsolve.soloc="build")
+```
+
+```{r}
+library(tidyverse)
+library(mrgsolve)
+library(PKPDmisc)
+theme_set(theme_bw())
+theme_update(legend.position = "top")
+```
+
+# Reference
+This model and vignette was derived from this publication
+
+__Comprehensive PBPK Model of Rifampicin for Quantitative Prediction of
+Complex Drug-Drug Interactions: CYP3A/2C9 Induction and OATP Inhibition Effects__
+    - Asaumi R, Toshimoto K, Tobe Y, Hashizume K, Nunoya KI, Imawaka H, Lee W,
+      Sugiyama Y.  CPT Pharmacometrics Syst Pharmacol. 2018 Jan 25. 
+      PMID: 29368402
+      - https://www.ncbi.nlm.nih.gov/pubmed/29368402
+
+
+
+# Rifampin PBPK
+
+```{r}
+model_dir <- "model"
+
+mod <- mread_cache("rifampicin_midazolam", model_dir, delta = 0.1)
+mod
+
+param(mod)
+init(mod)
+```
+
+
+## Single rifampicin dose
+```{r}
+rif <- ev(amt = 600)
+rif
+```
+
+
+```{r}
+mod %>%
+  ev(rif) %>% 
+  Req(Ccentral) %>%
+  mrgsim(end = 48) %>% 
+  plot()
+```
+
+
+## Multiple rifampicin doses
+```{r}
+rif <- mutate(rif, ii = 24, addl = 9)
+
+rif
+
+out <- 
+  mod %>%
+  ev(rif) %>% 
+  mrgsim(end = 240)
+```
+
+What is going on here?
+```{r}
+p <- plot(out, Ccentral ~ time)
+
+ggplot(as_tibble(out), aes(time/24,Ccentral)) + 
+  geom_line(lwd=1) + theme_bw() + 
+  scale_x_continuous(name = "Time (day)", breaks = seq(0,10,2))
+```
+
+
+Let's investigate
+
+```{r}
+aucs <- 
+  out %>% 
+  mutate(DAY = 1+floor(time/24)) %>%
+  group_by(DAY) %>% 
+  summarise(AUC = auc_partial(time,Ccentral)) %>% 
+  ungroup %>% 
+  mutate(pAUC = 100*AUC/first(AUC)) %>%
+  filter(DAY < 10)
+
+ggplot(aucs, aes(factor(DAY),pAUC)) + 
+  geom_col(alpha = 0.6) + 
+  geom_hline(yintercept = 70, lty = 2, col = "firebrick") + 
+  scale_y_continuous(breaks = seq(0,100,10)) 
+```
+
+
+Both `CYP3A4` and `UGT` metabolic activity increased after multiple
+rifampicin doses
+
+```{r}
+simsm <- 
+  out %>%
+  as_tibble() %>%
+  gather(variable, value, c(UGT_ratio_HC5, CYP3A4_ratio_HC5))
+
+simsm %>%
+  ggplot(., aes(time/24, value, col = variable)) + 
+  geom_line(lwd =1 ) + 
+  scale_color_brewer(palette = "Set2",name="",labels=c("CYP3A4", "UGT")) + 
+  scale_x_continuous(name="Time (day)", breaks = seq(0,10,2)) + 
+  ylab("fold induction") + theme(legend.position  = "right")
+```
+
+# PBPK model for rifampicin / midazolam DDI
+
+- Recall that our PBPK model is really a combination of two models:
+one for rifampicin and one for midazolam
+
+
+A single 3 mg midazolam dose
+
+```{r}
+mid <- ev(amt = 3, cmt = 2)
+
+mid
+
+mod %>% mrgsim_e(mid, outvars = "Cmidazolam") %>% plot()
+```
+
+Now, a single 3 mg midazolam dose after 7 days of rifampin 75 mg QD
+
+```{r}
+rif <- ev(amt = 75, ii = 24, addl = 6)
+
+rif_mid <- ev_seq(rif,  wait = -12,  mid)
+
+mid <- filter(rif_mid, cmt==2)
+
+both <- as_data_set(mid, rif_mid)
+
+both
+```
+
+```{r}
+sims <- 
+  mod %>% 
+  mrgsim_d(both, Req="Cmidazolam", end = 166) %>% 
+  filter_sims(time >= 156) %>% 
+  mutate(ID = factor(ID, labels = c("Midazolam", "Midazolam after Rif")))
+
+
+ggplot(sims, aes(time-156,Cmidazolam,col = factor(ID))) + 
+  geom_line(lwd = 1) + 
+  scale_y_continuous(trans = "log10", limits = c(0.1, 10)) +
+  scale_x_continuous(name = "Time (hr)", breaks = seq(0,10,2)) + 
+  scale_color_brewer(palette = "Set2", name="")
+
+```
+
+Midazolam exposure is reduced after rifampicin 75 mg daily x 7d
+
+```{r}
+sims %>% 
+  group_by(ID) %>% 
+  summarise(AUC = auc_partial(time,Cmidazolam)) %>%
+  mutate(percent_reduction = 100*(1-AUC/first(AUC))) 
+```
+
+## Dose-response for midazolam/rifampin DDI
+
+Make a function to wrap up the workflow for a single dose
+
+```{r}
+
+sim_ddi <- function(rif_dose, mid_dose = 3) {
+  mid <- ev(amt = mid_dose, cmt = 2)
+  rif <- ev(amt = rif_dose, ii = 24, addl = 6)
+  rif_mid <- ev_seq(rif, wait = -12, mid)
+  
+  mod %>% 
+    mrgsim_e(rif_mid, Req="Cmidazolam", end = 166) %>% 
+    filter_sims(time >= 156) %>%
+    mutate(rif = rif_dose, mid = mid_dose)
+}
+
+sim_ddi(600)
+
+out <- map_df(seq(0,600,10), .f = sim_ddi)
+```
+
+Summarize the simulations by both rifampicin dose and midazolam dose.  Because
+we simulated the zero rifampicin dose, we get the percent reduction in AUC
+by dividing by the "first" auc in the series
+
+```{r}
+summ <- 
+  out %>%
+  group_by(rif,mid) %>%
+  summarise(auc = auc_partial(time,Cmidazolam)) %>%
+  ungroup() %>%
+  mutate(pAUC = 100*(auc/first(auc)))
+
+summ
+```
+
+
+```{r}
+ggplot(summ, aes(rif,pAUC)) + 
+  geom_line(lwd = 1) + 
+  scale_y_continuous(breaks = seq(0,100,10), limits = c(0,100),
+                     name = "Midazolam AUC after Rif (% of no-Rif AUC)") + 
+  scale_x_continuous(name = "Rifampicin dose (mg)", breaks=seq(0,600,100)) +
+  theme_bw()
+```
+
+
+
+
+
