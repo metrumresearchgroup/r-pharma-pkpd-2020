@@ -1,0 +1,76 @@
+--- 
+title: "Pooled analysis of indomethacin PK data"
+author: Metrum Research Group
+date: ""
+---
+
+# Packages
+
+```{r,echo=FALSE}
+knitr::opts_chunk$set(comment='.', message=FALSE)
+```
+
+```{r}
+library(tidyverse)
+theme_set(theme_bw())
+library(mrgsolve)
+```
+
+# Load indomethacin data set
+```{r}
+data(Indometh)
+```
+
+- Take a look at what is there
+```{r}
+head(Indometh)
+
+count(Indometh, Subject)
+
+ggplot(Indometh, aes(time,conc,group=Subject)) + 
+  geom_point() + geom_line() +
+  scale_y_continuous(trans = "log", breaks = 10^seq(-4,4))
+```
+
+
+This is individual-level data, but we are going to do naive pooled 
+analysis. 
+
+# Data assembly 
+
+- Assume single 25 mg dose for all individuals
+- Setting `cmt` to 0 for observations
+- Setting `cmt` to 2 for doses ... will need a model 
+where the second compartment is `central`
+
+```{r}
+obs <- as.data.frame(Indometh) %>% 
+  mutate(evid = 0, cmt = 0, ID = as.numeric(Subject)) 
+
+head(obs)
+```
+
+```{r}
+dose <- 
+  distinct(obs, ID) %>% 
+  mutate(amt = 25, time = 0, conc = NA, evid = 1, cmt = 2)
+
+dose
+```
+
+- Put it back together 
+
+```{r}
+data <- 
+  bind_rows(obs, dose) %>% 
+  arrange(ID, time) %>%
+  mutate(Subject = NULL)
+
+
+head(data)
+
+saveRDS(file = "indometh.RDS", data)
+readr::write_csv(data, path = "indometh.csv", na= '.')
+
+```
+

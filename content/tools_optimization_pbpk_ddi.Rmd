@@ -1,0 +1,290 @@
+---
+title: Estimate parameters in a PBPK model
+author: "Metrum Research Group"
+date: ""
+---
+
+# Packages and setup
+
+```{r, message = FALSE}
+library(tidyverse)
+library(PKPDmisc)
+library(mrgsolve)
+source("script/functions.R")
+source("script/global.R")
+```
+
+
+```{r include =FALSE}
+knitr::opts_chunk$set(cache=TRUE, autodep=TRUE, fig.path="figures/pbpk-")
+```
+
+
+```{r}
+set.seed(10101)
+```
+
+```{r}
+theme_set(theme_bw())
+theme_update(legend.position = "top")
+scale_colour_discrete <- function(...) scale_color_brewer(palette="Set2")
+```
+
+Models are located here:
+```{r}
+model_dir <- "model"
+```
+
+
+# Reference
+__Quantitative Analyses of Hepatic OATP-Mediated Interactions Between Statins and Inhibitors Using PBPK Modeling With a Parameter Optimization Method__
+
+- T Yoshikado, K Yoshida, N Kotani, T Nakada, R Asaumi, K Toshimoto, K Maeda, H Kusuhara and Y Sugiyama
+
+- CLINICAL PHARMACOLOGY & THERAPEUTICS | VOLUME 100 NUMBER 5 | NOVEMBER 2016 
+
+- https://www.ncbi.nlm.nih.gov/pubmed/27170342
+
+
+# Data
+
+- Example taken from figure 4a from the publication
+- Using this as example data to fit
+```{r, message = FALSE}
+data.file <- "data/fig4a.csv"
+
+data <-
+  data.file %>% 
+  read_csv() %>% 
+  mutate(
+    profile = NULL, 
+    type=ID, 
+    typef=factor(ID, labels = c("Statin", "Statin+CsA")), 
+    DV = ifelse(DV==-1, NA_real_, DV)
+  )
+
+
+data
+```
+
+```{r}
+data %>% filter(evid==1)
+```
+
+
+
+- The goal is to fit the pitavastatin data either alone or 
+in combination with cyclosporin administered 1 hour before the 
+pitavastatin
+
+```{r, warning = FALSE}
+ggplot(data=data,aes(time,DV)) + 
+  geom_point(aes(col = typef), size = 3) + 
+  geom_line(col = "darkgrey", aes(group = typef)) + 
+  scale_y_continuous(trans="log", limits=c(0.1,300), breaks=logbr()) 
+```
+
+
+# PBPK model: pitavastatin / CsA DDI
+
+- Check out the model / data with a quick simulation
+
+```{r, message = FALSE, cache = FALSE}
+mod <- mread_cache("yoshikado", model_dir)
+```
+
+Make some persistent updates to the model
+
+- Simulate out to 14 hours
+- Only interested in `CP`, the pitavastatin concentration
+
+
+```{r}
+mod <- mod %>% update(end=14, delta=0.1) %>% Req(CP) 
+```
+
+A practice simulation
+```{r, warning =FALSE}
+dose <- filter(data, evid==1) %>% mutate(typef=NULL)
+
+sims <- 
+  mod %>% 
+  mrgsim_d(dose, obsaug=TRUE) %>% 
+  mutate(type = typef(ID))
+
+ggplot(sims, aes(time,CP,col=type)) + 
+  geom_line(lwd = 1) + 
+  scale_x_continuous(breaks = seq(0,12,2)) + 
+  scale_y_log10(name = "Pitavastatin concentration")
+```
+
+```{r}
+sims %>% 
+  group_by(type) %>% 
+  summarise(auc = auc_partial(time,CP)) %>% 
+  mutate(fold_increase = auc /first(auc))
+```
+
+
+# Objective function
+
+- Least squares objective function
+- Weighted by the observations
+
+Arguments:
+
+  - `dv` the observed data
+  - `pred` the predicted data
+
+```{r}
+wss <- function(dv, pred, weight = 1/dv) {
+  sum(((dv-pred)*weight)^2,na.rm=TRUE) 
+}
+```
+
+
+
+
+### Prediction function
+
+- Let's go through step by step what each line is doing for us
+
+Arguments: 
+
+- `p` the parameters proposed by the optimizer
+- `.data` the simulation template (doses and observation records)
+- `yobs` a vector of observed data which matches observations in `.data`
+- `pred` logical; if `TRUE`, just return predicted data
+
+
+```{r}
+sim_ofv <- function(p, data, pred = FALSE) {
+  
+  names(p) <- names(theta)
+  
+  p <- lapply(p,exp)
+  
+  out <- mod %>% param(p) %>% mrgsim_d(data, output="df")
+  
+  if(pred) return(out)
+  
+  ofv <- wss(data[["DV"]], out[["CP"]])
+  
+  return(ofv)
+  
+  #return(-1*sum(dnorm(log(yobs),log(out$CP),.par$sigma,log=TRUE)))
+  
+}
+```
+
+What this function does:
+
+1. Take in arguments; focus is on a new set of parameters `p` proposed by the 
+   optimizer; other arguments are just fixed data that we need
+1. Get the parameters out of log scale
+1. Also, put names on the list of parameters; this is crutial
+1. Update the model object with the new parameters
+1. (optionally simulate and return)
+1. Simulate from the data set, taking only observed values
+1. Calculate and return the objective function value
+
+
+# Data grooming
+
+- Pick out the observations
+- Drop the non-numeric columns
+
+```{r}
+data <-  dplyr::select(data, -typef)
+```
+
+# Optimize 
+
+First, set up the initial estimates
+
+```{r}
+theta <- c(
+  fbCLintall = 1.2, 
+  ikiu = 1.2, 
+  fbile = 0.9, 
+  ka = 0.1, 
+  ktr = 0.1
+) %>% log()
+```
+
+## `nloptr::newuoa`: minimization without derivatives
+
+```{r}
+fit <- nloptr::newuoa(x0 = theta, fn = sim_ofv, data = data)
+```
+
+
+```{r}
+fit
+```
+
+
+### Get some predictions to look at how the fit went
+
+Recall that our (transformed) parameters are
+```{r}
+fit$par
+```
+
+We can generate a prediction that matches our data like this
+
+```{r}
+sim_ofv(fit$par,data = dose, pred = TRUE) %>% filter(time >= 1) %>% head
+```
+
+We can also get the predictions under the initial conditions by passing in 
+`theta` rather than `fit$par`
+
+
+In the next block, generate
+
+1. Predictions with the final estimates
+1. Predications with the initial estimates
+1. Observed data to overlay
+
+```{r}
+df_pred <- sim_ofv(fit$par, dose, pred=TRUE) %>% mutate(type = typef(ID))
+df_init <- sim_ofv(theta,   dose, pred=TRUE) %>% mutate(type = typef(ID))
+df_obs <-  mutate(data, type=typef(ID))
+```
+
+
+### Make some plots
+```{r, warning = FALSE}
+ggplot(df_pred, aes(time,CP)) + 
+  geom_line(lwd=1) + 
+  geom_point(data = df_obs, aes(time,DV),col="firebrick",size=2) + 
+  facet_wrap(~type) + scale_y_log10() 
+```
+
+
+
+### A nicer plot
+```{r, warning = FALSE}
+ggplot(data=df_pred) + 
+  geom_line(data=df_init,aes(time,CP,lty="A"), col="black", lwd=0.7) +
+  geom_line(aes(time,CP,lty="B"),col="black",lwd=0.7) + 
+  geom_point(data=df_obs,aes(time,DV,col=type),size=3) + 
+  facet_wrap(~type) + 
+  scale_y_continuous(trans="log",breaks=10^seq(-4,4), 
+                     limits=c(0.1,100),
+                     "Pitavastatin concentration (ng/mL)") +
+  scale_x_continuous(name="Time (hours)", breaks=seq(0,14,2)) +
+  scale_linetype_manual(values= c(2,1), guide = FALSE,
+                        labels=c("Initial estimates", "Final estimates"), name="") +
+  theme_bw() + theme(legend.position="top") 
+```
+
+### The final objective function value and estimates
+```{r}
+sim_ofv(fit$par,data=data)
+
+exp(fit$par)
+```
+
+

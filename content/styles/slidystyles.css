@@ -1,0 +1,96 @@
+h1 {
+  color: black;
+}
+h2 {
+  color: black;
+}
+h3 {
+  color: black;
+}
+a {
+  color: steelblue;
+}
+
+
+body{ /* Normal  */
+    font-size: 32px;
+    line-height: 1.45;
+    font-family: Helvetica;
+}
+
+
+
+.sourceCode.r  {
+  font-family:  Consolas, "Liberation Mono", Menlo, Courier, monospace;
+  font-size: 95%;
+  background-color: #f6f8fa;
+
+}
+
+.sourceCode.c  {
+  font-family:  Consolas, "Liberation Mono", Menlo, Courier, monospace;
+  font-size: 95%;
+  background-color: #f6f8fa;
+}
+
+.slide.section {
+  line-height: 1.1;
+  margin-left: 50px;
+  margin-right: 50px;
+  font-size: 36px;
+}
+
+
+.slide.titlepage {
+  font-size: 48px;
+}
+
+.alert {
+  color: firebrick;
+  font-weight: bold;
+  font-family: Consolas, "Liberation Mono", Menlo, Courier, monospace;
+  
+}
+.defout  {
+  background-color: #F7F9F9;
+  font-weight: normal;
+  color: black;
+  border: 5px;
+  margin-top: 16px;
+  margin-bottom: 18px;
+  padding-top: 12px;
+  padding-bottom: 12px;
+  font-size: 75%;
+}
+
+.mypre {
+  color: darkslateblue;
+  background-color: #f6f8fa;
+}
+
+alrt {
+  color: firebrick;
+  font-weight: bold;
+  font-family: Consolas, "Liberation Mono", Menlo, Courier, monospace;
+}
+dsb {
+  color: darkslateblue;
+  font-weight: bold;
+  font-family: Consolas, "Liberation Mono", Menlo, Courier, monospace;
+}
+
+.column-left{
+  float: left;
+  width: 50%;
+  text-align: left;
+}
+.column-center{
+  display: inline-block;
+  width: 33%;
+  text-align: center;
+}
+.column-right{
+  float: right;
+  width: 50%;
+  text-align: left;
+}

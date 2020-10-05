@@ -1,0 +1,16 @@
+slidy_presentation:
+  number_sections: true
+  css: 
+    - "../styles/slidystyles.css"
+    - "../styles/colors.css"
+    - "../styles/precode.css"
+html_document: 
+  theme: flatly
+  highlight: pygments
+  toc: true
+  number_sections: true
+  css: styles/styles.css
+github_document:
+  toc: true
+  html_preview: false
+

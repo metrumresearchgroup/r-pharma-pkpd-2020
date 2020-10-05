@@ -1,0 +1,42 @@
+red {
+  color: firebrick;
+  font-weight: bold;
+  font-family: Consolas, "Liberation Mono", Menlo, Courier, monospace;
+}
+blu {
+  color: darkslateblue;
+  font-weight: bold;
+  font-family: Consolas, "Liberation Mono", Menlo, Courier, monospace;
+}
+grn {
+  color: darkgreen;
+  font-weight: bold;
+  font-family: Consolas, "Liberation Mono", Menlo, Courier, monospace;
+}
+green {
+  color: darkgreen;
+  font-weight: bold;
+}
+orng {
+  color: DarkOrange;
+  font-weight: bold;
+  font-family: Consolas, "Liberation Mono", Menlo, Courier, monospace;
+}
+blk {
+  color: black;
+  font-weight: bold;
+  font-family: Consolas, "Liberation Mono", Menlo, Courier, monospace;
+}
+gold {
+  color: GoldenRod;
+  font-weight: bold;
+  font-family: Consolas, "Liberation Mono", Menlo, Courier, monospace;
+}
+purp {
+  //color: Purple
+  font-weight: bold;
+  font-family: Consolas, "Liberation Mono", Menlo, Courier, monospace;
+}
+.red {
+    color: firebrick;
+}

@@ -1,0 +1,142 @@
+---
+title: <green>Optimization in R with mrgsolve</green>
+author: University at Buffalo CDSE Days 2019
+date: <blu>Kyle Baron & Timothy Knab / MetrumRG</blu>
+---
+
+```{r, echo = FALSE, message = FALSE, warning = FALSE}
+knitr::opts_chunk$set(message = FALSE)
+options(mrgsolve.soloc = "build")
+```
+
+
+```{r, include = FALSE}
+library(mrgsolve)
+library(dplyr)
+library(knitr)
+library(lattice)
+
+```
+
+# Thanks for inviting us back!
+
+
+__Case studies with mrgsolve: PBPK and QSP model implementation and utilization 
+in  R __
+
+https://github.com/metrumresearchgroup/pbpk-qsp-mrgsolve
+
+CDSE Days 2018
+
+# Optimization in R with mrgsolve
+
+<hr>
+
+https://github.com/metrumresearchgroup/ub-cdse-2019
+
+<hr>
+
+- mrgsolve intro
+- The R "way" to do optimization (simple linear model)
+- Indomethacin PK model optimization
+- Pitavastatin / CsA DDI model optimization
+- Look at options for different optimizers
+- Local sensitivity analysis
+- Likelihood profile
+- Generate virtual population
+
+# Single level of random effects
+
+- Today, optimizing parameters for models with single level
+of random effects (no IIV)
+- Options are available: `nlme`, `saemix`
+    - Use if really needed (like  [here](https://metrumrg.com/wp-content/uploads/2017/10/Baron_ASBMR_2013.pdf))
+- Look at [nlmixr](https://github.com/nlmixrdevelopment/nlmixr) for multi-level modeling in R with ODEs
+
+
+# About `mrgsolve` 
+
+- `R` package for simulation from ODE-based models
+    - Free, OpenSource, GitHub, CRAN
+- Language
+    - Models written in `C++` inside model specification format
+    - General purpose solver: `ODEPACK` / `DLSODA` (`FORTRAN`)
+        - Automatically detect and switch between non-stiff (Adams) and stiff (BDF)
+          methods for solving the differential equations
+    - Simulation workflow in `R`
+- Hierarchical (population) simulation
+    - `ID`, $\eta$, $\varepsilon$
+- Integrated PK functionaility
+    - Bolus, infusion, `F`, `ALAG`, `SS` etc, handled under the hood
+    - 1- and 2-cmt PK models in closed-form
+- Extensible using `R`, `C++`, `Rcpp`, `boost`, `RcppArmadillo`
+- `R` is it's natural habitat
+
+# `mrgsolve` started as `QSP` modeling tool
+- Motivation: large bone/mineral homeostatsis model (CaBone)
+- History using
+    - Berkeley Madonna
+    - WinBUGS
+    - NONMEM (attempted)
+- 2010: write `R` front end to `deSolve`
+- 2012: write `C++` interface to `DLSODA`
+- Develop dosing / event capability
+- More recently, expose functionality provided by
+    - `Rcpp` - vectors, matrices, functions, environments, random numbers 
+    - `boost` - numerical tools in `C++`
+    - users' own `C++` code (functions, data structures, classes)
+- Translator from `SBML` to `mrgsolve` using `R` bindings to `libSBML`   
+
+
+# Orientation
+
+- https://CRAN.R-project.org/package=mrgsolve
+
+- GitHub site: https://github.com/metrumresearchgroup/mrgsolve
+
+- Issues and questions: https://github.com/metrumresearchgroup/mrgsolve/issues
+
+- mrgsolve website: https://mrgsolve.github.io
+
+- User Guide: https://mrgsolve.github.io/user_guide
+
+- Blog: https://mrgsolve.github.io/blog
+
+- Vignettes: https://mrgsolve.github.io/vignettes
+
+
+# Optimization - log likelihood function
+
+<BR><BR><BR>
+<img src = "../images/setup1.png" width = "1024px"></img>
+
+# Optimization - log likelihood function
+
+
+<img src = "../images/setup2.png" width = "1024px"></img>
+
+# Optimization - log likelihood function
+
+
+<img src = "../images/setup2.5.png" width = "1024px"></img>
+
+
+# Optimization - log likelihood function
+
+
+<img src = "../images/setup3.png" width = "1024px"></img>
+
+
+# Optimization - log likelihood function
+
+<img src = "../images/setup4.png" width = "1024px"></img>
+
+
+# Wonderful options for optimization in R
+
+CRAN Task View: https://cran.r-project.org/web/views/Optimization.html
+
+
+
+
+

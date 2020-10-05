@@ -1,0 +1,386 @@
+---
+title: Introduction to parameter optimization
+author: "Metrum Research Group"
+date: ""
+---
+
+```{r, message = FALSE}
+library(tidyverse)
+library(broom)
+library(ggplot2)
+theme_set(theme_bw())
+```
+
+
+```{r, setup, echo = FALSE, message = FALSE}
+source("script/global.R")
+knitr::opts_chunk$set(fig.path = "figures/intro-")
+```
+
+
+# Swiss Fertility and Socioeconomic Indicators
+
+We'll get started with the introduciton to optimization with an easy 
+data set and an easy model. 
+
+Data were collected from 47 French-speaking provences around 1888. 
+```{r}
+data(swiss)
+glimpse(swiss, width = 60, strict.width="cut")
+```
+
+We'll work on a regression model for the standardized fertility 
+measure (dependent variable) as function of the `Examination`
+predictor (percent draftees receiving highest mark on 
+army examination).
+
+
+
+```{r}
+ggplot(swiss, aes(Examination,Fertility)) + geom_point() + geom_smooth()
+```
+
+
+Usually we'd fit this model in R like this:
+```{r}
+fit <- lm(Fertility ~ Examination, swiss) 
+
+tidy(fit) %>% knitr::kable()
+```
+
+
+Using `lm` is the "right" way to model this data.  We're going to write 
+come code that also get parameters for this data.  But we'll put all of the 
+pieces together ourselves.  So this isn't the proper way to get these parameter
+estimates.  But this simple example will help us better understand the 
+mechanics of parameter optimization in R.
+
+# Optimization the `R` way
+
+We'll need
+
+  1. A __model__
+      - The model generates the data (dependent variable) based on parameters and 
+      predictors
+  1. Some __data__
+      - Using `swiss` for now
+  1. An __objective function__
+       - To quantify how consistent a set of parameters are with the 
+      observed data
+  1. An __optimizer__
+      - Search the parameter space for most optimal parameter value
+
+## Model
+
+The parameters are 
+
+- `intercept`
+- `slope`
+
+And the predictor is `ex` ... in our example `Examination` 
+
+This is pretty simple stuff.  But we'll wrap it up in a function to 
+call like this:
+
+```{r}
+linear_model <- function(intercept, slope, ex) {
+  intercept + slope*ex
+}
+```
+
+So we can get the predicted `Fertility` by passing in the intercept, 
+slope, and the `Examination` value
+
+E(y|x)
+```{r}
+linear_model(intercept = 90, slope = -2, ex = 20)
+```
+
+## Data
+
+How you want to set this up is a bit dependent on your application.  I'm 
+going to get vectors called `ex` for the `Examination` value (predictor)
+and `fer` for `Fertility` (the dependent variable).
+
+```{r}
+ex <- swiss[["Examination"]]
+
+fer <- swiss[["Fertility"]]
+```
+
+## Objective function
+
+We'll write this function so that 
+
+  1. The first argument is `par`, the parameters we want to evaluate
+      - Par will be a vector of length 2, the intercept and the slope
+  1. We will also pass in the predictor (`ex`) and the data (`fer`), which 
+     we'll need to calculate the objective function
+
+
+```{r}
+ofv <- function(par, ex, fer) {
+  
+  fer_hat <- linear_model(par[1], par[2], ex)
+  
+  sum((fer-fer_hat)^2)
+}
+```
+
+This is an _O_ rdinary _L_ east _S_ quares objective function.  
+
+Working backward:
+
+1. We return the squared difference between the predicted values (`fer_hat`) and 
+the data
+1. We generate the predicted values from our linear model function, 
+the proposed parameters and the data
+1. The optimizer will propose a set of parameters for us to evaluate
+
+
+Let's test the objective function
+
+```{r}
+theta <- c(70, -2)
+
+ofv(theta, ex, fer)
+```
+
+Good or bad?  Looking back at the data, the intercept doesn't look like 
+it is 70 ... more like 80.  Let's try that:
+
+```{r}
+theta <- c(80,-2)
+
+ofv(theta, ex, fer)
+```
+
+Ok the objective function is lower now.  The second set of parameters we tried
+looks better than the first set.  
+
+What about slope?
+
+```{r}
+theta <- c(80,-1.5)
+
+ofv(theta, ex, fer)
+```
+
+This is even better.  But we can't keep going like this.  
+
+## Parameter search
+
+Let's do this for a big batch of parameters
+
+- intercept from 75 to 95
+- slope from -2 to 0
+
+```{r}
+test <- expand.grid(intercept = seq(75,95,1), slope = seq(-2,0,0.1))
+
+head(test)
+```
+
+Now calculate the value of the objective function for each paramter set
+```{r}
+test <- mutate(
+  test, 
+  value = pmap_dbl(test, .f=function(intercept,slope) {
+    ofv(c(intercept,slope), ex = ex, fer = fer)
+  })
+)
+
+arrange(test,value) %>% head
+
+ggplot(test) + geom_contour(aes(intercept,slope,z=value),bins=80)
+```
+
+
+
+## Optimize
+
+We know there is a set of parameters that really gets us the smallest
+value of the objective function and are therefor the "optimal" parameters.
+
+We invoke an optizer in R to search the parameter space and find that set of 
+parameters.
+
+Start with an optimizer that comes with R in the `stats` package.  `optim`
+by default does Nelder-Mead optimization algorithm.
+
+When we call `optim`, we have to give an inital guess (`par`) and 
+the function to minimize (`ofv`).  We also pass in the 
+predictor and the vector of observed data so we can calculate the 
+sum of squares.
+
+```{r}
+fit <- optim(c(100,1), ofv, ex = ex, fer = fer)
+```
+
+
+
+```{r}
+fit$par
+
+lm(Fertility~Examination, swiss) 
+```
+
+
+# Use other optimizers
+
+## `minqa::newuoa`
+
+```{r}
+library(minqa)
+
+fit <- newuoa(theta, ofv, ex = ex, fer = fer, control = list(iprint=20))
+```
+
+```{r}
+fit$par
+```
+
+## DEoptim
+
+Differential evolution algorithm
+
+```{r, output.size = 160}
+library(DEoptim)
+
+lower <- c(intercept=0, slope=-100)
+upper <- c(intercept = 1000, slope=100)
+
+con <- DEoptim.control(itermax = 80, trace = 2)
+
+set.seed(112233)
+fit <- DEoptim(ofv, lower, upper, ex = ex, fer = fer, control=con)
+```
+
+
+# Maximum likelihood estimation
+
+Let's write a new (R) function where we optimize based on a normal likelihood
+function. 
+
+The arguments are the same as the OLS function.  Now, rather than comparing 
+predictions against data using sum of squares, we compare based on 
+normal likelihood function.
+
+
+```{r}
+ml <- function(p, ex, fer) {
+  
+  fer_hat <- linear_model(p[1], p[2], ex)
+  
+  like <- dnorm(fer, fer_hat, p[3], log=TRUE)
+  
+  -1*sum(like)
+}
+```
+
+
+__Note__
+
+1. We have an extra parameter now ... the standard deviation for likelihood
+function
+1. We use `log=TRUE` to get the log likelihood; then the joint likelihood 
+of all the data is the sum of the individual likelihoods
+1. We return minus-1 times the log likelihood; we are doing *maximum* likelihood
+but the optimizers find the *minimum* of a function
+
+
+Test the function now
+
+```{r}
+theta <- c(intercept = 10, slope = 1, sd = 2)
+
+ml(theta, ex, fer)
+```
+
+And we get the same answer
+```{r}
+fit <- newuoa(theta, ml, ex = ex, fer = fer)
+
+fit$par
+```
+
+# Get standard error of estimate
+
+We use `numDeriv::hessian` to get the hessian
+
+```{r}
+library(numDeriv)
+
+he <- hessian(ml, fit$par, ex = ex, fer = fer)
+
+he
+```
+
+
+To derive the standard error
+
+1. Invert the hessian matrix
+1. Get the diagonal elements
+1. Take the squre root
+
+```{r}
+he %>% solve %>% diag %>% sqrt
+```
+
+And compare against the answer we got from `lm`
+```{r}
+lm(Fertility ~ Examination, data = swiss) %>% tidy %>% pull(std.error)
+```
+
+
+You can also try `nlme::fdHess` 
+```{r}
+library(nlme)
+
+he <- fdHess(pars  = fit$par, fun = ml, ex = ex, fer = fer)
+
+he$Hessian
+```
+
+In my experience, it is frequently necessary to just bootstrap the data
+set.  We will look at likelihood profile in a separate vignette.
+
+# Plot predicted and observed values
+
+Take the final parameter estimates
+```{r}
+fit$par
+```
+
+and pass them into our `linear_model` to generate predicted values.
+
+
+```{r}
+data <- tibble(
+  ex = ex, 
+  fer = fer, 
+  pred = linear_model(fit$par[1], fit$par[2], ex)
+)
+```
+
+```{r}
+ggplot(data = data) + 
+  geom_point(aes(x =  ex, y = fer)) +
+  geom_line(aes(x = ex, y = pred), lwd = 2, col="red3") 
+```
+
+
+
+# Let's try it
+
+```{r}
+data <- readRDS("data/pdfit.RDS")
+
+head(data)
+```
+
+```{r}
+ggplot(data, aes(auc,response)) + geom_point()
+```
+
+

@@ -1,0 +1,320 @@
+--- 
+title: "Pooled analysis of indomethacin PK data"
+author: Metrum Research Group
+date: ""
+---
+
+# Packages
+
+```{r,echo=FALSE}
+knitr::opts_chunk$set(comment='.', message=FALSE, fig.path="figures/indo-", 
+                      cache=TRUE, autodep=TRUE)
+```
+
+```{r}
+library(tidyverse)
+theme_set(theme_bw())
+library(mrgsolve)
+```
+
+# Load indomethacin data set
+```{r}
+data(Indometh)
+```
+
+- Take a look at what is there
+```{r}
+head(Indometh)
+
+count(Indometh, Subject)
+
+ggplot(Indometh, aes(time,conc,group=Subject)) + 
+  geom_point() + geom_line() +
+  scale_y_continuous(trans = "log", breaks = 10^seq(-4,4))
+```
+
+
+This is individual-level data, but we are going to do naive pooled 
+analysis. 
+
+# Data assembly 
+```{r}
+data <- readRDS("data/indometh.RDS")
+
+head(data)
+
+```
+
+
+
+# Create an objective function function
+
+- For starters, just do OLS estimation
+- Note that we _need_ to name the parameters `p`
+    - Parameter updates require names in `mrgsolve`
+    - Generally, don't expect `p` to retain any names that you might
+    pass in through the initial estimates
+- We also pass in the `data` and the dependent variable (`dv`)
+
+```{r}
+obj <- function(p, theta, data, dv ="conc", pred = FALSE) {
+  
+  names(p) <- names(theta)
+  
+  p <- lapply(p,exp)
+  
+  mod <- param(mod, p)
+  
+  out <- mod %>% param(p) %>% mrgsim_q(data, output="df")
+  
+  if(pred) return(out)
+  
+  sqr <- (out[["CP"]] - data[[dv]])^2
+  
+  sum(sqr, na.rm=TRUE)
+}
+```
+
+# Load a PK model 
+
+- We'll try out one-compartment first
+```{r}
+mod <- modlib("pk1")
+
+param(mod)
+```
+
+# Fit with one-compartment model
+
+- First generate some initial estimates
+- These _need_ to be named in a way that is consistent with
+the model we are using
+- I usually run a test with the objective function function to 
+make sure the logic works out
+
+```{r}
+theta <- log(c(CL = 1, V = 100))
+
+obj(theta,theta,data)
+```
+
+- Nelder-Mead optimization
+```{r}
+fit <- optim(par = theta, fn=obj, theta = theta, data=data)
+```
+
+- And generate some predictions based on the final estimates
+```{r}
+pred <- obj(fit$par, theta, data, pred = TRUE)
+
+data$pred <- pred$CP
+
+head(data)
+```
+
+# Make a plot of the output
+
+- What do you think?  Good fit?
+
+```{r, warning = FALSE}
+ggplot(data = data) + 
+  geom_point(aes(time,conc)) + 
+  scale_y_log10() + 
+  geom_line(aes(time,pred),col="firebrick", lwd=1)
+```
+
+# Your turn
+
+- Try fitting the same indomethacin data with a 2-compartment model
+
+```{r}
+mod <- modlib("pk2")
+```
+
+- Take a look at the model and generate a call to `minqa::newuoa` using 
+the OLS objective function above to fit the data
+
+- You will also need try out a new set of initial estimates for all of
+the volumes and clearances for 2-compartment, IV bolus model
+
+- What do you think of the fit using the the OLS objective function?
+    - Can you make a simple modification to the OLS objective function
+    that might make the fit look a little better?
+
+- Suppose we're worried about the `newuoa` optimizer and want to 
+try a global search algorithm
+    - Can you construct a call to `RcppDE::DEoptim` that will also 
+    fit the data?
+    - Remember that `DEoptim` doesn't use initial estimates the 
+    same way `stats::optim` or `minqa::newuoa` does; you have to 
+    specify one vector of lower boundaries and one vector of 
+    upper boundaries, with a lower and upper bound for each parameter
+
+
+
+# Answer
+
+- Set the initial estimates for two compartment model
+
+```{r}
+param(mod)
+
+theta <- log(c(CL = 2, V2 = 50, Q = 10, V3 = 50))
+```
+
+
+```{r}
+fit <- optim(par = theta, fn=obj, theta = theta, data=data)
+```
+
+- And generate some predictions based on the final estimates
+```{r}
+pred <- obj(fit$par, theta, data, pred = TRUE)
+
+data$pred <- pred$CP
+
+ggplot(data = data) + 
+  geom_point(aes(time,conc)) + 
+  scale_y_log10() + 
+  geom_line(aes(time,pred),col="firebrick", lwd=1)
+```
+
+
+- Try weighted least squares 
+
+```{r}
+obj <- function(p, theta, data, wt, pred = FALSE) {
+  names(p) <- names(theta)
+  p <- lapply(p,exp)
+  out <- mod %>% param(p) %>% mrgsim_q(data, output="df")
+  if(pred) return(out)
+  return(sum(((out$CP - data[["conc"]])*wt)^2, na.rm=TRUE))
+}
+```
+
+```{r}
+dv <- data[["conc"]]
+
+fit_wt <- minqa::newuoa(par = theta, fn=obj, theta = theta, data=data, wt=1/dv)
+```
+
+Final estimates and final value of objective function
+```{r}
+exp(fit_wt$par)
+
+obj(fit_wt$par,theta,data,dv)
+```
+
+- Generate predictions for the final and initial estimates
+
+```{r}
+pred <-  obj(fit$par, theta, data, wt = 1/dv, pred = TRUE)
+predi <- obj(theta,  theta, data, wt = 1/dv, pred = TRUE)
+predw <- obj(fit_wt$par, theta, data, wt = 1/dv, pred = TRUE) 
+
+
+data$pred <- pred$CP
+data$predi <- predi$CP
+data$predw <- predw$CP
+head(data)
+```
+
+- Plot the predictions
+```{r}
+pred <- distinct(data, time, .keep_all = TRUE)
+
+ggplot(data = data) + 
+  geom_point(aes(time,conc)) + 
+  scale_y_log10() + 
+  geom_line(data=pred,aes(time,pred),col="black", lwd=1, alpha = 0.6) +
+  geom_line(data=pred,aes(time,predi),col="darkgreen", lwd=1) + 
+  geom_line(data = pred, aes(time,predw), col="firebrick", lwd = 1)
+```
+
+## Fit the data with `RcppDE::DEoptim`
+
+```{r, eval = FALSE}
+fit <- DEoptim::DEoptim(
+  obj, 
+  lower = rep(-4,4), 
+  upper = rep(4,4), 
+  theta = theta, data = data, wt = 1/dv, 
+  control = DEoptim.control(itermax=120,trace=20)
+)
+
+```
+
+## Check the estimates and the final value of the objective function
+
+```{r, eval = FALSE}
+tibble(
+  DE = exp(fit$optim$bestmem), 
+  Nelder = exp(fit_wt$par)
+)
+
+tibble(
+  DE = obj(fit$optim$bestmem, theta,data,1/dv),
+  Nelder = obj(fit_wt$par, theta, data, 1/dv)
+)
+```
+
+
+
+# Some global search with NLOPTR
+
+https://nlopt.readthedocs.io/en/latest/NLopt_Algorithms/
+
+```{r, eval=FALSE}
+library(nloptr)
+a0 <- obj(theta,theta=theta,data=data,wt = 1/dv, pred = FALSE)
+
+lowr <- rep(-5,length(theta))
+uppr <- rep(5, length(theta))
+
+x <- isres(
+  x0 = theta, 
+  fn=obj, 
+  lower = lowr, 
+  upper = uppr, 
+  theta=theta, 
+  data=data, 
+  wt = 1/dv, 
+  maxeval=10000
+)
+
+y <- crs2lm(
+  x0 = theta, 
+  fn=obj, 
+  lower = lowr, 
+  upper = uppr, 
+  theta=theta, 
+  data=data, 
+  wt = 1/dv, 
+  maxeval=500
+)
+
+z <- newuoa(x0 = y$par, fn = obj,theta = theta, data = data, wt = 1/dv)
+
+
+tibble(a0 = theta, a = fit_wt$par, x = x$par, y = y$par, z= z$par) %>% exp
+tibble(a0 = a0,a = fit_wt$fval, x = x$value, y= y$value, z = z$value)
+
+
+direct <- directL( 
+  fn = obj, 
+  lower = lowr, 
+  upper = uppr, 
+  theta = theta, 
+  data = data, 
+  wt = 1/dv, 
+  control = list(maxeval=2500)
+)
+
+
+tibble(a0 = theta, a = fit_wt$par, x = x$par, y = y$par, z= z$par,d = direct$par) %>% exp
+tibble(a0 = a0,a = fit_wt$fval, x = x$value, y= y$value, z = z$value, d = direct$value)
+
+```
+
+
+

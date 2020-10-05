@@ -1,0 +1,49 @@
+pre {
+  font-family:  "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace;
+}
+
+code {
+  font-size: 90%;
+  margin-top: 0;
+  margin-bottom: 0;
+  overflow: auto;
+  font-size: 90%;
+  line-height: 1.45;
+  border-radius: 5px;
+
+}
+
+pre {
+  margin-top: 0;
+  margin-bottom: 0;
+  overflow: auto;
+  font-size: 90%;
+  line-height: 1.45;
+  border: 0;
+  padding: 16px;
+  border-radius: 5px;
+  margin-top: 16px;
+  margin-bottom: 18px;
+  padding-top: 12px;
+  padding-bottom: 12px;
+}
+
+pre:not([class]) {
+  border: 1;
+  background-color: #f6f8fa;
+  
+}
+
+code {
+  border: 1;
+  font-family:  "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace;
+
+}
+
+code:not([class]) {
+  background-color: #f6f8fa;
+  font-family: Menlo, Courier, monospace;
+  font-weight: bold;
+  
+}
+
