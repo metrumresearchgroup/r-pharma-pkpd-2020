@@ -4,7 +4,7 @@ author: "Metrum Research Group"
 date: ""
 ---
 
-```{r, message = FALSE}
+```{r, setup,  message = FALSE}
 library(tidyverse)
 library(broom)
 library(ggplot2)
@@ -45,7 +45,7 @@ Usually we'd fit this model in R like this:
 ```{r}
 fit <- lm(Fertility ~ Examination, swiss) 
 
-tidy(fit) %>% knitr::kable()
+tidy(fit)
 ```
 
 
