@@ -12,7 +12,7 @@ theme_set(theme_bw())
 ```
 
 
-```{r, setup, echo = FALSE, message = FALSE}
+```{r, setup2, echo = FALSE, message = FALSE}
 source("script/global.R")
 knitr::opts_chunk$set(fig.path = "figures/intro-")
 ```
@@ -29,16 +29,14 @@ data(swiss)
 glimpse(swiss, width = 60, strict.width="cut")
 ```
 
+```{r}
+ggplot(swiss, aes(Examination,Fertility)) + geom_point() + geom_smooth()
+```
+
 We'll work on a regression model for the standardized fertility 
 measure (dependent variable) as function of the `Examination`
 predictor (percent draftees receiving highest mark on 
 army examination).
-
-
-
-```{r}
-ggplot(swiss, aes(Examination,Fertility)) + geom_point() + geom_smooth()
-```
 
 
 Usually we'd fit this model in R like this:

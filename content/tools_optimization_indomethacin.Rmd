@@ -42,15 +42,31 @@ analysis.
 data <- readRDS("data/indometh.RDS")
 
 head(data)
-
 ```
 
+# Load a PK model 
+
+- We'll try out one-compartment first
+```{r}
+mod <- modlib("pk1")
+
+param(mod)
+```
+
+Pick some parameters to estimate:
+```{r}
+theta <- log(c(CL = 1, V = 100))
+```
+
+```{r}
+names(theta)
+```
 
 
 # Create an objective function function
 
 - For starters, just do OLS estimation
-- Note that we _need_ to name the parameters `p`
+- Note that we _need_ to name the parameters (`p`)
     - Parameter updates require names in `mrgsolve`
     - Generally, don't expect `p` to retain any names that you might
     pass in through the initial estimates
@@ -65,7 +81,7 @@ obj <- function(p, theta, data, dv ="conc", pred = FALSE) {
   
   mod <- param(mod, p)
   
-  out <- mod %>% param(p) %>% mrgsim_q(data, output="df")
+  out <- mrgsim_q(mod, data, output="df")
   
   if(pred) return(out)
   
@@ -75,14 +91,7 @@ obj <- function(p, theta, data, dv ="conc", pred = FALSE) {
 }
 ```
 
-# Load a PK model 
 
-- We'll try out one-compartment first
-```{r}
-mod <- modlib("pk1")
-
-param(mod)
-```
 
 # Fit with one-compartment model
 
@@ -93,8 +102,6 @@ the model we are using
 make sure the logic works out
 
 ```{r}
-theta <- log(c(CL = 1, V = 100))
-
 obj(theta,theta,data)
 ```
 
@@ -239,7 +246,7 @@ fit <- DEoptim::DEoptim(
   lower = rep(-4,4), 
   upper = rep(4,4), 
   theta = theta, data = data, wt = 1/dv, 
-  control = DEoptim.control(itermax=120,trace=20)
+  control = DEoptim::DEoptim.control(itermax=120,trace=20)
 )
 
 ```
@@ -279,7 +286,7 @@ x <- isres(
   theta=theta, 
   data=data, 
   wt = 1/dv, 
-  maxeval=10000
+  maxeval=20000
 )
 
 y <- crs2lm(
@@ -290,7 +297,7 @@ y <- crs2lm(
   theta=theta, 
   data=data, 
   wt = 1/dv, 
-  maxeval=500
+  maxeval=5000
 )
 
 z <- newuoa(x0 = y$par, fn = obj,theta = theta, data = data, wt = 1/dv)

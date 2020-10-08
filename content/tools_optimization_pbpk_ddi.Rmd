@@ -164,7 +164,9 @@ sim_ofv <- function(p, data, pred = FALSE) {
   
   p <- lapply(p,exp)
   
-  out <- mod %>% param(p) %>% mrgsim_d(data, output="df")
+  mod <- param(mod, p)
+  
+  out <- mrgsim_q(mod, data = data, output="df")
   
   if(pred) return(out)
   
@@ -234,7 +236,7 @@ fit$par
 We can generate a prediction that matches our data like this
 
 ```{r}
-sim_ofv(fit$par,data = dose, pred = TRUE) %>% filter(time >= 1) %>% head
+sim_ofv(fit$par, data = dose, pred = TRUE) %>% filter(time >= 1) %>% head
 ```
 
 We can also get the predictions under the initial conditions by passing in 

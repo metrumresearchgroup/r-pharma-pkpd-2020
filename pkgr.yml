@@ -27,7 +27,7 @@ Packages:
 # first, Pkgr will check the second, then the third, etc.
 # first repository listed for each
 Repos:
-  - MPN: "https://mpn.metworx.com/snapshots/stable/2020-08-15"
+  - MPN: "https://mpn.metworx.com/snapshots/stable/2020-09-20"
   - MRAN: "https://cran.microsoft.com/snapshot/2020-08-15"
 Lockfile:
     Type: renv
@@ -36,12 +36,8 @@ Lockfile:
 # These optional customizations should take the format
 # Customizations:
 Customizations:
-  Repos:
-    - MPN:
-        Type: binary
   Packages:
   - tidyverse:
       Suggests: true
   - hydroPSO: 
       Repo: MRAN
-

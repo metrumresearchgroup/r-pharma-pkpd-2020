@@ -328,7 +328,7 @@ crs <- crs2lm(
   lower = lower, 
   upper = upper, 
   data=data,
-  maxeval=2500
+  maxeval=5500
 )
 ```
 

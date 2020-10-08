@@ -73,7 +73,8 @@ These are the parameters that we were focusing on in the regression model.  Addi
 `Vadi` here as a negative control. 
 
 ```{r}
-pars <- as.numeric(param(mod))[c("fbCLintall", "ikiu", "fbile", "ka", "ktr", "Vadi")]
+pars <- as.numeric(param(mod))
+pars <- pars[c("fbCLintall", "ikiu", "fbile", "ka", "ktr", "Vadi")]
 
 pars
 ```
