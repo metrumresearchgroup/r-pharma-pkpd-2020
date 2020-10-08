@@ -1,0 +1,613 @@
+---
+title: "Get Started with mrgsolve"
+author: "Metrum Research Group"
+date: 2020-10-09
+output: 
+  html_document:
+    css: [styles/styles.css]
+    number_sections: true
+    highlight: pygments
+    toc: true
+    toc_depth: 3
+---
+
+```{r,include = FALSE}
+knitr::opts_chunk$set(comment = '.')
+```
+
+
+# About `mrgsolve` 
+
+- `R` package for simulation from ODE-based models
+    - Free, OpenSource, GitHub, CRAN
+- Language
+    - Models written in `C++` inside model specification format
+    - General purpose solver: `ODEPACK` / `DLSODA` (`FORTRAN`)
+        - Automatically detect and switch between non-stiff (Adams) and stiff (BDF)
+          methods for solving the differential equations
+    - Simulation workflow in `R`
+- Hierarchical (population) simulation
+    - `ID`, $\eta$, $\varepsilon$
+- Integrated PK functionaility
+    - Bolus, infusion, `F`, `ALAG`, `SS` etc, handled under the hood
+    - 1- and 2-cmt PK models in closed-form
+- Extensible using `R`, `C++`, `Rcpp`, `boost`, `RcppArmadillo`
+- `R` is it's natural habitat
+
+## Background
+
+- Motivation: large bone/mineral homeostatsis model (CaBone)
+- History using
+    - Berkeley Madonna
+    - WinBUGS
+    - NONMEM (attempted)
+- 2010: write `R` front end to `deSolve`
+- 2012: write `C++` interface to `DLSODA`
+- Develop dosing / event capability
+- More recently, expose functionality provided by
+    - `Rcpp` - vectors, matrices, functions, environments, random numbers 
+    - `boost` - numerical tools in `C++`
+    - users' own `C++` code (functions, data structures, classes)
+- Translator from `SBML` to `mrgsolve` using `R` bindings to `libSBML`   
+
+
+## Orientation
+
+- https://CRAN.R-project.org/package=mrgsolve
+
+- GitHub site: https://github.com/metrumresearchgroup/mrgsolve
+
+- Issues and questions: https://github.com/metrumresearchgroup/mrgsolve/issues
+
+- mrgsolve website: https://mrgsolve.github.io
+
+- User Guide: https://mrgsolve.github.io/user_guide
+
+- Blog: https://mrgsolve.github.io/blog
+
+- Vignettes: https://mrgsolve.github.io/vignettes
+
+- Compare against NONMEM: https://github.com/mrgsolve/nmtests
+
+## What we will cover today
+
+1. Three basic workflows
+1. Loading the model into R
+1. Event objects
+1. Data sets
+
+Emphasis is on getting you running your own simulations today.
+
+
+# Three (basic) simulation workflows
+
+```{r setup}
+library(tidyverse)
+library(mrgsolve)
+```
+
+- Single profile
+- Batch
+- Population
+
+
+These aren't entirely different, but I like to organize this way. When I'm 
+planning an simulation, I first think "what type of output do I want?" and the
+answer to that question directs me on what to do next.
+
+## Single profile
+
+
+This is how we load a simulation model into mrgsolve.  
+
+Load a two-compartment model from the internal library
+
+```{r}
+mod <- modlib("pk2")
+```
+
+We now have a 2-compartment PK model with which we can simulate. It is important
+to know how this works and we will talk in depth about this. But for now, let's
+simulate some stuff. 
+
+First, we'll just simulate from this model object (`mrgsim()`)
+
+```{r}
+mrgsim(mod)
+```
+
+
+In the output
+
+- Essentially a data frame of simulated data
+  - First column `ID`
+  - Second column: `time`
+  - Next columns: compartments
+  - Last columns: derived quantities
+
+___Investigate the model object a bit___
+
+- overview
+
+```{r}
+
+```
+
+- parameters
+
+
+```{r}
+
+```
+
+- compartments
+
+```{r}
+
+```
+
+- outputs
+
+```{r}
+
+```
+
+
+### Event object
+
+Now, we'll create an "event object" to simulate from.  This is just a concise
+statement of some intervention. Like a one-liner ... easy to make. 
+
+Let's do 100 mg x1 to the first compartment, then simulate:
+
+```{r}
+mod %>% ev(amt = 100) %>% mrgsim()
+```
+
+
+We use `ev()` to create a set of intervention(s) for the simulation.  Here, it
+is just a single 100 mg dose into the first compartment.  The event object 
+looks like this:
+
+```{r}
+ev(amt = 100)
+```
+
+We have the following columns
+
+1. `time` - whatever is your model time
+1. `amt` - whatever is the mass unit for your compartments
+1. `cmt` could be number or name
+1. `evid` just like nonmem - mostly using 1
+
+You can also use:   
+- `rate` - infusion   
+- `ss` - steady state (1 or 2)  
+- `ii` - interdose interval   
+- `addl` - additional doses   
+- `tinf`  - infusion time (rather than `rate`)  
+- `total` - total number of doses (rather than `addl`)  
+
+See `?ev`
+
+### Plot
+
+Simulate 100 mg x1 again and now we pipe it to `plot()`
+
+```{r}
+mod %>% ev(amt = 100) %>% mrgsim() %>% plot()
+```
+
+### Control time span of the simulation 
+
+I would like this to look a little nicer. 
+
+- 100 mg x1    
+- Run the end of the simulation out to 72 hours with delta 0.1 
+- Make the line smoother  
+- Plot the result  
+
+```{r}
+mod %>% ev(amt = 100) %>% mrgsim(end = 72, delta = 0.1) %>% plot()
+```
+
+We can make this change permanent
+
+- end: 72 hours
+- delta: 0.1 hours
+
+```{r}
+mod2 <- update(mod, end = 72, delta = 0.1)
+```
+
+
+
+### More-complicated events
+
+We said that the `event` objects were simple.  But we can combine them to make 
+more complicated sequences.  
+
+Let's load a PK model for azithromycin (`azithro-single`):
+
+```{r}
+mod <- mread("azithro-single", project = "model")
+```
+
+__Check out the model__
+
+```{r}
+mod
+```
+
+Create an event object to implement the z-pak dose:
+
+- 500 mg po on day 1 (`load`)
+- 250 mg po daily on days 2 through 5 (`continue`)
+
+```{r}
+load <- ev(amt = 500)
+continue <- ev(amt = 250, ii = 24, addl = 3, time = 24)
+zpak <- c(load, continue)
+```
+
+
+Look at the zpak dosing object
+
+```{r}
+zpak
+```
+
+
+We can also accompilsh this just with 250 mg tablets
+
+```{r}
+zpak <- c(ev(amt = 250), ev(amt = 250, ii = 24, addl = 4))
+
+zpak
+```
+
+Now, simulate and plot from the zpak event object
+
+```{r}
+mrgsim(mod, zpak) %>% plot()
+```
+
+
+### Event sequence
+
+- 100 mg daily x 7 __then__   
+- 50 mg BID x7   
+
+```{r}
+
+```
+
+
+
+## Batch
+
+Let's use our fixed-effects azithromycin model to look at how weight affects
+PK. We'll use that `zpak` object that we created in the previous section. 
+
+### Create an idata set
+
+Now, let's make a data frame that contains the weights that we want to
+investigate (from 40 kg to 140 kg by 10 kg). 
+
+```{r}
+wt <- tibble(WT = seq(40, 140, 10))
+
+head(wt)
+```
+
+
+__IMPORTANT__: the key here is that we have `WT` as a column in the data set
+and we have `WT` as a parameter in the model (look at the parameters)
+
+```{r}
+param(mod)
+```
+
+When we make the names agree, mrgsolve will update the `WT` parameter as the 
+simulation advances across individuals.
+
+
+### Simulate with event object
+
+Now we can pass this set of weights into the problem as "idata".  We will use
+just the first record from the zpak dosing object.
+
+- Load the `azithro-single` model
+- Create a dosing event with 500 mg x1
+- Simulate with `idata`
+- End the simulation at 96 hours
+
+```{r}
+mod <- mread("azithro-single", project = "model")
+
+load <- ev(amt = 500)
+
+out <- mrgsim(mod, events = load, idata = wt, end = 96)
+```
+
+Take a quick look at the output (`head`)
+```{r}
+out
+```
+
+
+
+Plot the ouptut, looking only at `CP` and on log scale
+
+```{r}
+plot(out, CP ~ time,  logy = TRUE)
+```
+
+
+This idata set functionality is typically used with an event object 
+(as we have here) but isn't required.
+
+
+## Population
+
+The last workflow I'm calling "population".  Here, population just refers to 
+the input data set. 
+
+We can have a data frame that contains many individuals with all different 
+types of dosing interventions.  This is just like the data set that you use
+to do your NONMEM run. 
+
+### Read a NMTRAN like data set
+
+Meropenem PopPK
+http://repository.ddmore.foundation/model/DDMODEL00000213
+
+
+For example, read in `data/meropenem.csv`
+
+```{r}
+data <- readr::read_csv("data/meropenem.csv", na = '.')
+```
+
+
+- glimpse the data (`head`)
+- count `EVID`, `DUR`, `AMT`
+- number of IDs
+
+```{r}
+head(data)
+
+count(data, EVID, DUR, AMT)
+
+length(unique(data$ID))
+```
+
+
+Now, load the meropenem model (`meropenem_pk.cpp`, in the `model` directory)
+```{r}
+mod <- mread("meropenem_pk", project = "model")
+
+```
+
+And simulate with `mod` and `data`
+```{r}
+out <- mrgsim(mod, data)
+```
+
+
+Then plot using `Y` output
+
+```{r}
+plot(out, Y ~ TIME)
+```
+
+
+Resimulate and plot by duration
+
+```{r}
+out <- mrgsim(mod, data, carry_out = "DUR")
+```
+
+Plot `Y` versus `TIME` by `DUR`
+```{r}
+plot(out, Y ~ TIME | DUR)
+```
+
+Recall that we have both observations and doses in the data set (as usual 
+for your NONMEM data set)
+
+Count `EVID` in `data`
+
+```{r}
+count(data, EVID)
+```
+
+
+When mrgsolve finds records with `EVID=0` in the data set, it will assume that 
+you have specified every time that you want a simulated value in the data set.
+In other words the design of the simulated output will match the design of the 
+input data:
+
+
+Check `dim()` in `data` and `out`:
+
+```{r}
+dim(data) 
+dim(out)
+```
+
+
+Let's look to see what happens when we don't include any observation records
+in the input data:
+
+Filter into `doses`:
+
+```{r}
+doses <- filter(data, EVID==1)
+```
+
+Now we still have the same number of people, with different doses and infusion
+times. 
+
+Check unique `ID` and count `EVID`, `AMT`, and `DUR`
+
+```{r}
+length(unique(doses$ID))
+count(doses, EVID, AMT, DUR)
+```
+
+
+- Simulate from this sparse data set; end = 8 hours
+- Get `DUR` in to the output
+- Plot `log(Y)` versus `time` by `DUR`
+
+
+```{r} 
+mod %>% 
+  mrgsim(doses, carry_out = "DUR", end = 8) %>% 
+  plot(Y~TIME|factor(DUR), logy=TRUE)
+```
+
+
+The principle is: when mrgsolve does NOT find any observation records, it will 
+fill them in for you according to the time grid that we looked at previously. 
+
+This can be very helpful in reducing the data assembly burden when running your 
+simulations.
+
+
+### Some other ways to create population inputs
+
+
+- `expand.ev()` makes all combinations of your inputs
+  - Sensible defaults are provided
+  - `time`, `cmt`, `evid`
+
+```{r}
+data <- expand.ev(amt = c(100, 300, 1000), ii = c(12, 24))
+
+data
+```
+
+
+- `as_data_set()` takes event objects and creates a data frame / set
+  - 100 mg and 300 mg doses daily x7
+  - 20 individuals each
+
+```{r}
+data <- as_data_set(
+  ev(amt = 100, ii = 24, total = 7, ID = 1:20), 
+  ev(amt = 300, ii = 24, total = 7, ID = 1:20)
+)
+
+```
+
+
+# Get work done
+
+
+## Work with output
+
+- names
+- summary
+- head
+- `$`
+
+```{r}
+mod <- modlib("pk1")
+
+out <- mrgsim(mod)
+
+names(out)
+summary(out)
+head(out)
+out$time[1:5]
+```
+
+
+
+## Coerce output
+
+- data.frame
+- tibble
+- matrix
+
+```{r}
+out <- mrgsim(mod)
+
+class(out)
+
+as_tibble(out)
+
+```
+
+## Corerce via dplyr verbs
+
+- Simulate and pipe the output to `mutate()`
+
+```{r}
+out <- mrgsim(mod) %>% mutate(name = "kyle")
+
+class(out)
+head(out)
+```
+
+
+
+## Return data frame
+
+- Use `output` argument
+
+```{r}
+out <- mrgsim(mod, output = "df")
+
+class(out)
+```
+
+- Use `mrgsim_df()`
+
+```{r}
+out <- mrgsim_df(mod)
+
+class(out)
+```
+
+
+## Carry-Out
+
+- 100 mg x1
+- need `dose` in the output
+- contrast that with getting `amt` in the output
+
+First create the event
+```{r}
+e <- ev(amt = 100, dose = amt)
+
+e
+```
+
+Then recover `dose`
+```{r}
+mrgsim(mod, events = e, carry_out = "dose")
+```
+
+
+## Recover
+
+- `dose`: 100 mg
+- `trt`: 100 mg x1
+- need `dose` and `trt` in the output
+
+First, create the event
+```{r}
+e <- ev(amt = 100, trt = "100 mg x1", dose = amt)
+
+e
+```
+
+Then simulate and recover `trt` and `amt`
+```{r}
+mrgsim(mod, events = e, recover = "trt,amt")
+```
+
+

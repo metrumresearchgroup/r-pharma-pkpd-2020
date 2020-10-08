@@ -20,7 +20,7 @@ options(mrgsolve.soloc="build")
 library(tidyverse)
 library(mrgsolve)
 library(PKPDmisc)
-theme_set(theme_bw())
+theme_set(theme_bw() + theme(legend.position = "top"))
 theme_update(legend.position = "top")
 ```
 
@@ -132,7 +132,7 @@ one for rifampicin and one for midazolam
 A single 3 mg midazolam dose
 
 ```{r}
-mid <- ev(amt = 3, cmt = 2)
+mid <- ev(amt = 3, cmt = "Mgutlumen")
 
 mid
 
@@ -142,11 +142,11 @@ mod %>% mrgsim_e(mid, outvars = "Cmidazolam") %>% plot()
 Now, a single 3 mg midazolam dose after 7 days of rifampin 75 mg QD
 
 ```{r}
-rif <- ev(amt = 75, ii = 24, addl = 6)
+rif <- ev(amt = 75, ii = 24, addl = 6, cmt = "Xgutlumen")
 
 rif_mid <- ev_seq(rif,  wait = -12,  mid)
 
-mid <- filter(rif_mid, cmt==2)
+mid <- filter(rif_mid, cmt=="Mgutlumen")
 
 both <- as_data_set(mid, rif_mid)
 
