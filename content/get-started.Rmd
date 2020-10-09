@@ -12,7 +12,7 @@ output:
 ---
 
 ```{r,include = FALSE}
-knitr::opts_chunk$set(comment = '.')
+knitr::opts_chunk$set(comment = '.',fig.path = "figures/get-started-")
 ```
 
 
@@ -130,26 +130,26 @@ ___Investigate the model object a bit___
 - overview
 
 ```{r}
-
+mod
 ```
 
 - parameters
 
 
 ```{r}
-
+param(mod)
 ```
 
 - compartments
 
 ```{r}
-
+init(mod)
 ```
 
 - outputs
 
 ```{r}
-
+outvars(mod)
 ```
 
 
