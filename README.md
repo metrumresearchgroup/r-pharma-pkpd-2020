@@ -3,7 +3,7 @@
 - location: R/Pharma 2020, on Zoom
 - date: Friday, October 9 2020
 - url: https://rinpharma.com/workshops/
-- presenters: Devin Pastoor & Kyle Baron // Metrum Research Group
+- presenters: Devin Pastoor & Kyle Baron // [Metrum Research Group](https://metrumrg.com)
 - vignettes
   - [optimization intro](content/tools_optimization_intro.md)
   - [optimization indomethacin pk](content/tools_optimization_indomethacin.md)
