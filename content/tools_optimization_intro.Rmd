@@ -82,7 +82,7 @@ call like this:
 
 ```{r}
 linear_model <- function(intercept, slope, ex) {
-  intercept + slope*ex
+  intercept + slope * ex
 }
 ```
 
@@ -251,7 +251,7 @@ upper <- c(intercept = 1000, slope=100)
 con <- DEoptim.control(itermax = 80, trace = 2)
 
 set.seed(112233)
-fit <- DEoptim(ofv, lower, upper, ex = ex, fer = fer, control=con)
+fit <- DEoptim(ofv, lower, upper, ex = ex, fer = fer, control = con)
 ```
 
 
@@ -270,7 +270,7 @@ ml <- function(p, ex, fer) {
   
   fer_hat <- linear_model(p[1], p[2], ex)
   
-  like <- dnorm(fer, fer_hat, p[3], log=TRUE)
+  like <- dnorm(fer, fer_hat, p[3], log = TRUE)
   
   -1*sum(like)
 }
@@ -300,7 +300,29 @@ And we get the same answer
 fit <- newuoa(theta, ml, ex = ex, fer = fer)
 
 fit$par
+
+fit$fval
 ```
+
+# Extended least squares
+
+```{r}
+els <- function(p, ex, fer) {
+  
+  fer_hat <- linear_model(p[1], p[2], ex)
+  
+  0.5 * sum((fer - fer_hat)^2/p[3] + log(p[3]))
+}
+```
+
+```{r}
+fit.els <- newuoa(theta, els, ex = ex, fer = fer)
+
+fit.els$par
+
+fit.els$fval
+```
+
 
 # Get standard error of estimate
 
@@ -322,12 +344,14 @@ To derive the standard error
 1. Take the squre root
 
 ```{r}
-he %>% solve %>% diag %>% sqrt
+he %>% solve() %>% diag() %>% sqrt()
 ```
 
 And compare against the answer we got from `lm`
 ```{r}
-lm(Fertility ~ Examination, data = swiss) %>% tidy %>% pull(std.error)
+lm(Fertility ~ Examination, data = swiss) %>% 
+  tidy() %>% 
+  pull(std.error)
 ```
 
 
@@ -337,7 +361,7 @@ library(nlme)
 
 he <- fdHess(pars  = fit$par, fun = ml, ex = ex, fer = fer)
 
-he$Hessian
+he$Hessian %>% solve() %>% diag() %>% sqrt()
 ```
 
 In my experience, it is frequently necessary to just bootstrap the data
