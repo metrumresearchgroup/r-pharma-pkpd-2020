@@ -15,6 +15,7 @@ theme_set(theme_bw())
 ```{r, setup2, echo = FALSE, message = FALSE}
 source("script/global.R")
 knitr::opts_chunk$set(fig.path = "figures/intro-")
+options(mrgsolve.soloc="build", dplyr.summarise.inform = FALSE)
 ```
 
 

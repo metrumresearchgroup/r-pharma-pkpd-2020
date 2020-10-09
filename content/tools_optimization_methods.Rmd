@@ -22,6 +22,7 @@ source("script/global.R")
 
 ```{r include =FALSE}
 knitr::opts_chunk$set(cache=TRUE, autodep=TRUE,fig.path="figures/methods-")
+options(mrgsolve.soloc="build", dplyr.summarise.inform = FALSE)
 ```
 
 
@@ -30,8 +31,7 @@ set.seed(10101)
 ```
 
 ```{r}
-theme_set(theme_bw())
-theme_update(legend.position = "top")
+theme_set(theme_bw() + theme(legend.position = "top"))
 scale_colour_discrete <- function(...) scale_color_brewer(palette="Set2")
 ```
 

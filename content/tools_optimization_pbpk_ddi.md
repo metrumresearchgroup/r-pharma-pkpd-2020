@@ -35,8 +35,7 @@ set.seed(10101)
 ```
 
 ``` r
-theme_set(theme_bw())
-theme_update(legend.position = "top")
+theme_set(theme_bw() + theme(legend.position = "top"))
 scale_colour_discrete <- function(...) scale_color_brewer(palette="Set2")
 ```
 
@@ -216,7 +215,9 @@ sim_ofv <- function(p, data, pred = FALSE) {
   
   p <- lapply(p,exp)
   
-  out <- mod %>% param(p) %>% mrgsim_d(data, output="df")
+  mod <- param(mod, p)
+  
+  out <- mrgsim_q(mod, data = data, output="df")
   
   if(pred) return(out)
   
@@ -276,19 +277,19 @@ fit
 ```
 
     . $par
-    . [1] -0.20418269 -4.51446274 -1.06752471 -0.01113143 -0.37149033
+    . [1] -0.20421286 -4.51432097 -1.06749446 -0.01109318 -0.37133662
     . 
     . $value
     . [1] 0.6860763
     . 
     . $iter
-    . [1] 406
+    . [1] 351
     . 
     . $convergence
-    . [1] 1
+    . [1] 4
     . 
     . $message
-    . [1] "NLOPT_SUCCESS: Generic success return value."
+    . [1] "NLOPT_XTOL_REACHED: Optimization stopped because xtol_rel or xtol_abs (above) was reached."
 
 ### Get some predictions to look at how the fit went
 
@@ -298,21 +299,21 @@ Recall that our (transformed) parameters are
 fit$par
 ```
 
-    . [1] -0.20418269 -4.51446274 -1.06752471 -0.01113143 -0.37149033
+    . [1] -0.20421286 -4.51432097 -1.06749446 -0.01109318 -0.37133662
 
 We can generate a prediction that matches our data like this
 
 ``` r
-sim_ofv(fit$par,data = dose, pred = TRUE) %>% filter(time >= 1) %>% head
+sim_ofv(fit$par, data = dose, pred = TRUE) %>% filter(time >= 1) %>% head
 ```
 
     .   ID time       CP
     . 1  2  1.0  0.00000
     . 2  2  1.0  0.00000
-    . 3  2  1.1 18.19300
-    . 4  2  1.2 28.55547
-    . 5  2  1.3 36.22908
-    . 6  2  1.4 42.13578
+    . 3  2  1.1 18.19345
+    . 4  2  1.2 28.55603
+    . 5  2  1.3 36.22961
+    . 6  2  1.4 42.13621
 
 We can also get the predictions under the initial conditions by passing
 in `theta` rather than `fit$par`
@@ -321,8 +322,7 @@ In the next block, generate
 
 1.  Predictions with the final estimates
 2.  Predications with the initial estimates
-3.  Observed data to
-overlay
+3.  Observed data to overlay
 
 <!-- end list -->
 
@@ -374,4 +374,4 @@ sim_ofv(fit$par,data=data)
 exp(fit$par)
 ```
 
-    . [1] 0.81531341 0.01094949 0.34385861 0.98893030 0.68970568
+    . [1] 0.81528881 0.01095104 0.34386902 0.98896812 0.68981170

@@ -5,9 +5,9 @@ Metrum Research Group
   - [Packages](#packages)
   - [Load indomethacin data set](#load-indomethacin-data-set)
   - [Data assembly](#data-assembly)
+  - [Load a PK model](#load-a-pk-model)
   - [Create an objective function
     function](#create-an-objective-function-function)
-  - [Load a PK model](#load-a-pk-model)
   - [Fit with one-compartment model](#fit-with-one-compartment-model)
   - [Make a plot of the output](#make-a-plot-of-the-output)
   - [Your turn](#your-turn)
@@ -53,15 +53,14 @@ head(Indometh)
 count(Indometh, Subject)
 ```
 
-    . # A tibble: 6 x 2
-    .   Subject     n
-    .   <ord>   <int>
-    . 1 1          11
-    . 2 4          11
-    . 3 2          11
-    . 4 5          11
-    . 5 6          11
-    . 6 3          11
+    . Grouped Data: conc ~ time | Subject
+    .   Subject  n
+    . 1       1 11
+    . 2       4 11
+    . 3       2 11
+    . 4       5 11
+    . 5       6 11
+    . 6       3 11
 
 ``` r
 ggplot(Indometh, aes(time,conc,group=Subject)) + 
@@ -90,36 +89,6 @@ head(data)
     . 5 1.00 0.48    0   0  1  NA
     . 6 1.25 0.37    0   0  1  NA
 
-# Create an objective function function
-
-  - For starters, just do OLS estimation
-  - Note that we *need* to name the parameters `p`
-      - Parameter updates require names in `mrgsolve`
-      - Generally, don’t expect `p` to retain any names that you might
-        pass in through the initial estimates
-  - We also pass in the `data` and the dependent variable (`dv`)
-
-<!-- end list -->
-
-``` r
-obj <- function(p, theta, data, dv ="conc", pred = FALSE) {
-  
-  names(p) <- names(theta)
-  
-  p <- lapply(p,exp)
-  
-  mod <- param(mod, p)
-  
-  out <- mod %>% param(p) %>% mrgsim_q(data, output="df")
-  
-  if(pred) return(out)
-  
-  sqr <- (out[["CP"]] - data[[dv]])^2
-  
-  sum(sqr, na.rm=TRUE)
-}
-```
-
 # Load a PK model
 
   - We’ll try out one-compartment first
@@ -138,6 +107,48 @@ param(mod)
     .  CL   1     | V    20   
     .  KA   1     | .    .
 
+Pick some parameters to estimate:
+
+``` r
+theta <- log(c(CL = 1, V = 100))
+```
+
+``` r
+names(theta)
+```
+
+    . [1] "CL" "V"
+
+# Create an objective function function
+
+  - For starters, just do OLS estimation
+  - Note that we *need* to name the parameters (`p`)
+      - Parameter updates require names in `mrgsolve`
+      - Generally, don’t expect `p` to retain any names that you might
+        pass in through the initial estimates
+  - We also pass in the `data` and the dependent variable (`dv`)
+
+<!-- end list -->
+
+``` r
+obj <- function(p, theta, data, dv ="conc", pred = FALSE) {
+  
+  names(p) <- names(theta)
+  
+  p <- lapply(p,exp)
+  
+  mod <- param(mod, p)
+  
+  out <- mrgsim_q(mod, data, output="df")
+  
+  if(pred) return(out)
+  
+  sqr <- (out[["CP"]] - data[[dv]])^2
+  
+  sum(sqr, na.rm=TRUE)
+}
+```
+
 # Fit with one-compartment model
 
   - First generate some initial estimates
@@ -149,8 +160,6 @@ param(mod)
 <!-- end list -->
 
 ``` r
-theta <- log(c(CL = 1, V = 100))
-
 obj(theta,theta,data)
 ```
 
@@ -197,7 +206,7 @@ ggplot(data = data) +
   geom_line(aes(time,pred),col="firebrick", lwd=1)
 ```
 
-![](figures/indo-unnamed-chunk-11-1.png)<!-- -->
+![](figures/indo-unnamed-chunk-13-1.png)<!-- -->
 
 # Your turn
 
@@ -272,7 +281,7 @@ ggplot(data = data) +
 
     . Warning: Removed 6 rows containing missing values (geom_point).
 
-![](figures/indo-unnamed-chunk-15-1.png)<!-- -->
+![](figures/indo-unnamed-chunk-17-1.png)<!-- -->
 
   - Try weighted least squares
 
@@ -349,7 +358,7 @@ ggplot(data = data) +
 
     . Warning: Removed 6 rows containing missing values (geom_point).
 
-![](figures/indo-unnamed-chunk-20-1.png)<!-- -->
+![](figures/indo-unnamed-chunk-22-1.png)<!-- -->
 
 ## Fit the data with `RcppDE::DEoptim`
 
@@ -359,7 +368,7 @@ fit <- DEoptim::DEoptim(
   lower = rep(-4,4), 
   upper = rep(4,4), 
   theta = theta, data = data, wt = 1/dv, 
-  control = DEoptim.control(itermax=120,trace=20)
+  control = DEoptim::DEoptim.control(itermax=120,trace=20)
 )
 ```
 
@@ -396,7 +405,7 @@ x <- isres(
   theta=theta, 
   data=data, 
   wt = 1/dv, 
-  maxeval=10000
+  maxeval=20000
 )
 
 y <- crs2lm(
@@ -407,7 +416,7 @@ y <- crs2lm(
   theta=theta, 
   data=data, 
   wt = 1/dv, 
-  maxeval=500
+  maxeval=5000
 )
 
 z <- newuoa(x0 = y$par, fn = obj,theta = theta, data = data, wt = 1/dv)

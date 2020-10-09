@@ -7,6 +7,7 @@ date: ""
 
 ```{r, warning = FALSE, message = FALSE}
 library(tidyverse)
+theme_set(theme_bw() + theme(legend.position = "top"))
 library(mrgsolve)
 library(FME)
 options(mrgsolve.soloc = "build")
@@ -17,6 +18,7 @@ options(mrgsolve.soloc = "build")
 source("script/global.R")
 knitr::opts_chunk$set(fig.path = "figures/sensitivity_local-", 
                       cache=TRUE, autodep=TRUE)
+options(mrgsolve.soloc="build", dplyr.summarise.inform = FALSE)
 ```
 
 

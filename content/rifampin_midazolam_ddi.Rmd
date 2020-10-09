@@ -13,7 +13,7 @@ output:
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE, comment = '.', warning = FALSE, 
                       cache = TRUE, autodep = TRUE, message = FALSE)
-options(mrgsolve.soloc="build")
+options(mrgsolve.soloc="build", dplyr.summarise.inform = FALSE)
 ```
 
 ```{r}
@@ -21,7 +21,6 @@ library(tidyverse)
 library(mrgsolve)
 library(PKPDmisc)
 theme_set(theme_bw() + theme(legend.position = "top"))
-theme_update(legend.position = "top")
 ```
 
 # Reference

@@ -47,8 +47,7 @@ set.seed(10101)
 ```
 
 ``` r
-theme_set(theme_bw())
-theme_update(legend.position = "top")
+theme_set(theme_bw() + theme(legend.position = "top"))
 scale_colour_discrete <- function(...) scale_color_brewer(palette="Set2")
 ```
 
@@ -235,11 +234,11 @@ First, set up the initial estimates
 
 ``` r
 theta <- c(
-  fbCLintall = 1.2, 
-  ikiu = 1.2, 
-  fbile = 0.9, 
-  ka = 0.1, 
-  ktr = 0.1
+  fbCLintall = 1, 
+  ikiu = 1, 
+  fbile = 0.5, 
+  ka = 1, 
+  ktr = 1
 ) %>% log()
 ```
 
@@ -247,26 +246,27 @@ theta <- c(
 
 ``` r
 fit <- nloptr::newuoa(x0 = theta, fn = sim_ofv, data = data)
-```
-
-``` r
 fit
 ```
 
     . $par
-    . [1] -0.20418269 -4.51446274 -1.06752471 -0.01113143 -0.37149033
+    . [1] -0.20428246 -4.51446804 -1.06769436 -0.01128541 -0.37159534
     . 
     . $value
-    . [1] 0.6860763
+    . [1] 0.6860764
     . 
     . $iter
-    . [1] 406
+    . [1] 386
     . 
     . $convergence
-    . [1] 1
+    . [1] 4
     . 
     . $message
-    . [1] "NLOPT_SUCCESS: Generic success return value."
+    . [1] "NLOPT_XTOL_REACHED: Optimization stopped because xtol_rel or xtol_abs (above) was reached."
+
+``` r
+fit_minqa <- minqa::newuoa(theta, fn = sim_ofv, data = data) 
+```
 
 #### The final objective function value and estimates
 
@@ -274,14 +274,14 @@ fit
 sim_ofv(fit$par,data=data)
 ```
 
-    . [1] 0.6860763
+    . [1] 0.6860764
 
 ``` r
 exp(fit$par) %>% set_names(names(theta))
 ```
 
     . fbCLintall       ikiu      fbile         ka        ktr 
-    . 0.81531341 0.01094949 0.34385861 0.98893030 0.68970568
+    . 0.81523207 0.01094943 0.34380028 0.98877803 0.68963325
 
 ## `optim`: Nelder-Mead
 
@@ -372,8 +372,8 @@ fit3 <- GenSA(
 ```
 
     . Initializing par with random data inside bounds
-    . It: 1, obj value: 3.482240586
-    . It: 37, obj value: 0.6860966824
+    . It: 1, obj value: 3.470357641
+    . It: 25, obj value: 0.6860778737
 
 ## `hydroPSO`: particle swarm optimization
 
@@ -383,7 +383,7 @@ fit3 <- GenSA(
 set.seed(22022013)
 
 fit4 <- hydroPSO(
-  theta, fn = "sim_ofv", lower = lower, upper = upper, 
+  theta, fn = sim_ofv, lower = lower, upper = upper, 
   control = list(maxit = 100, REPORT = 5),
   data = data
 )
@@ -400,7 +400,7 @@ crs <- crs2lm(
   lower = lower, 
   upper = upper, 
   data=data,
-  maxeval=2500
+  maxeval=5500
 )
 ```
 
@@ -426,14 +426,14 @@ tibble(
     . # A tibble: 8 x 6
     .   method  fbCLintall   ikiu fbile    ka   ktr
     .   <chr>        <dbl>  <dbl> <dbl> <dbl> <dbl>
-    . 1 initial      1.2   1.2    0.9   0.1   0.1  
+    . 1 initial      1     1      0.5   1     1    
     . 2 newuoa       0.815 0.0110 0.344 0.989 0.690
-    . 3 nelder       0.814 0.0110 0.343 0.976 0.691
+    . 3 nelder       0.815 0.0110 0.344 0.990 0.690
     . 4 nelder2      0.815 0.0110 0.344 0.989 0.690
     . 5 DEoptim      0.815 0.0110 0.344 0.989 0.689
-    . 6 SA           0.815 0.0110 0.344 0.989 0.688
-    . 7 PSO          0.815 0.0110 0.344 0.988 0.689
-    . 8 CRS          0.817 0.0110 0.345 0.980 0.692
+    . 6 SA           0.815 0.0110 0.344 0.989 0.689
+    . 7 PSO          0.815 0.0110 0.344 0.988 0.690
+    . 8 CRS          0.815 0.0110 0.344 0.989 0.690
 
 ``` r
 value0 <- sim_ofv(theta,data)
@@ -446,13 +446,13 @@ tibble(
 ```
 
     . # A tibble: 8 x 2
-    .   method   value
-    .   <chr>    <dbl>
-    . 1 initial 11.0  
-    . 2 newuoa   0.686
-    . 3 nelder   0.687
-    . 4 nelder2  0.686
-    . 5 DEoptim  0.686
-    . 6 SA       0.686
-    . 7 PSO      0.686
-    . 8 CRS      0.686
+    .   method  value
+    .   <chr>   <dbl>
+    . 1 initial 5.00 
+    . 2 newuoa  0.686
+    . 3 nelder  0.686
+    . 4 nelder2 0.686
+    . 5 DEoptim 0.686
+    . 6 SA      0.686
+    . 7 PSO     0.686
+    . 8 CRS     0.686

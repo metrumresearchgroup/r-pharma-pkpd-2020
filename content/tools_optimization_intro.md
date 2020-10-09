@@ -14,6 +14,7 @@ Metrum Research Group
       - [`minqa::newuoa`](#minqanewuoa)
       - [DEoptim](#deoptim)
   - [Maximum likelihood estimation](#maximum-likelihood-estimation)
+  - [Extended least squares](#extended-least-squares)
   - [Get standard error of estimate](#get-standard-error-of-estimate)
   - [Plot predicted and observed
     values](#plot-predicted-and-observed-values)
@@ -21,6 +22,12 @@ Metrum Research Group
 
 ``` r
 library(tidyverse)
+```
+
+    ## Warning: replacing previous import 'vctrs::data_frame' by 'tibble::data_frame'
+    ## when loading 'dplyr'
+
+``` r
 library(broom)
 library(ggplot2)
 theme_set(theme_bw())
@@ -38,8 +45,8 @@ data(swiss)
 glimpse(swiss, width = 60, strict.width="cut")
 ```
 
-    . Observations: 47
-    . Variables: 6
+    . Rows: 47
+    . Columns: 6
     . $ Fertility        <dbl> 80.2, 83.1, 92.5, 85.8, 76.9, 76…
     . $ Agriculture      <dbl> 17.0, 45.1, 39.7, 36.5, 43.5, 35…
     . $ Examination      <int> 15, 6, 5, 12, 17, 9, 16, 14, 12,…
@@ -47,29 +54,29 @@ glimpse(swiss, width = 60, strict.width="cut")
     . $ Catholic         <dbl> 9.96, 84.84, 93.40, 33.77, 5.16,…
     . $ Infant.Mortality <dbl> 22.2, 22.2, 20.2, 20.3, 20.6, 26…
 
-We’ll work on a regression model for the standardized fertility measure
-(dependent variable) as function of the `Examination` predictor (percent
-draftees receiving highest mark on army
-examination).
-
 ``` r
 ggplot(swiss, aes(Examination,Fertility)) + geom_point() + geom_smooth()
 ```
 
-<img src="figures/intro-unnamed-chunk-3-1.png" style="display: block; margin: auto;" />
+<img src="figures/intro-unnamed-chunk-2-1.png" style="display: block; margin: auto;" />
+
+We’ll work on a regression model for the standardized fertility measure
+(dependent variable) as function of the `Examination` predictor (percent
+draftees receiving highest mark on army examination).
 
 Usually we’d fit this model in R like this:
 
 ``` r
 fit <- lm(Fertility ~ Examination, swiss) 
 
-tidy(fit) %>% knitr::kable()
+tidy(fit)
 ```
 
-| term        |   estimate | std.error |  statistic | p.value |
-| :---------- | ---------: | --------: | ---------: | ------: |
-| (Intercept) |  86.818529 | 3.2576034 |  26.651043 |   0e+00 |
-| Examination | \-1.011317 | 0.1781971 | \-5.675275 |   9e-07 |
+    . # A tibble: 2 x 5
+    .   term        estimate std.error statistic  p.value
+    .   <chr>          <dbl>     <dbl>     <dbl>    <dbl>
+    . 1 (Intercept)    86.8      3.26      26.7  3.35e-29
+    . 2 Examination    -1.01     0.178     -5.68 9.45e- 7
 
 Using `lm` is the “right” way to model this data. We’re going to write
 come code that also get parameters for this data. But we’ll put all of
@@ -106,7 +113,7 @@ like this:
 
 ``` r
 linear_model <- function(intercept, slope, ex) {
-  intercept + slope*ex
+  intercept + slope * ex
 }
 ```
 
@@ -247,7 +254,7 @@ arrange(test,value) %>% head
 ggplot(test) + geom_contour(aes(intercept,slope,z=value),bins=80)
 ```
 
-<img src="figures/intro-unnamed-chunk-13-1.png" style="display: block; margin: auto;" />
+<img src="figures/intro-unnamed-chunk-12-1.png" style="display: block; margin: auto;" />
 
 ## Optimize
 
@@ -332,7 +339,7 @@ upper <- c(intercept = 1000, slope=100)
 con <- DEoptim.control(itermax = 80, trace = 2)
 
 set.seed(112233)
-fit <- DEoptim(ofv, lower, upper, ex = ex, fer = fer, control=con)
+fit <- DEoptim(ofv, lower, upper, ex = ex, fer = fer, control = con)
 ```
 
     . Iteration: 2 bestvalit: 318953.193160 bestmemit:  265.976666   -8.389177
@@ -390,7 +397,7 @@ ml <- function(p, ex, fer) {
   
   fer_hat <- linear_model(p[1], p[2], ex)
   
-  like <- dnorm(fer, fer_hat, p[3], log=TRUE)
+  like <- dnorm(fer, fer_hat, p[3], log = TRUE)
   
   -1*sum(like)
 }
@@ -425,6 +432,37 @@ fit$par
 
     . [1] 86.818530 -1.011317  9.434621
 
+``` r
+fit$fval
+```
+
+    . [1] 172.1763
+
+# Extended least squares
+
+``` r
+els <- function(p, ex, fer) {
+  
+  fer_hat <- linear_model(p[1], p[2], ex)
+  
+  0.5 * sum((fer - fer_hat)^2/p[3] + log(p[3]))
+}
+```
+
+``` r
+fit.els <- newuoa(theta, els, ex = ex, fer = fer)
+
+fit.els$par
+```
+
+    . [1] 86.818523 -1.011317 89.012071
+
+``` r
+fit.els$fval
+```
+
+    . [1] 128.9861
+
 # Get standard error of estimate
 
 We use `numDeriv::hessian` to get the hessian
@@ -451,7 +489,7 @@ To derive the standard error
 <!-- end list -->
 
 ``` r
-he %>% solve %>% diag %>% sqrt
+he %>% solve() %>% diag() %>% sqrt()
 ```
 
     . [1] 3.1875394 0.1743644 0.9731070
@@ -459,7 +497,9 @@ he %>% solve %>% diag %>% sqrt
 And compare against the answer we got from `lm`
 
 ``` r
-lm(Fertility ~ Examination, data = swiss) %>% tidy %>% pull(std.error)
+lm(Fertility ~ Examination, data = swiss) %>% 
+  tidy() %>% 
+  pull(std.error)
 ```
 
     . [1] 3.2576034 0.1781971
@@ -471,13 +511,10 @@ library(nlme)
 
 he <- fdHess(pars  = fit$par, fun = ml, ex = ex, fer = fer)
 
-he$Hessian
+he$Hessian %>% solve() %>% diag() %>% sqrt()
 ```
 
-    .               [,1]          [,2]          [,3]
-    . [1,]  5.280183e-01  8.706690e+00 -2.933469e-05
-    . [2,]  8.706690e+00  1.764587e+02 -8.123530e-05
-    . [3,] -2.933469e-05 -8.123530e-05  1.056046e+00
+    . [1] 3.1875681 0.1743662 0.9731027
 
 In my experience, it is frequently necessary to just bootstrap the data
 set. We will look at likelihood profile in a separate vignette.
@@ -508,7 +545,7 @@ ggplot(data = data) +
   geom_line(aes(x = ex, y = pred), lwd = 2, col="red3") 
 ```
 
-<img src="figures/intro-unnamed-chunk-28-1.png" style="display: block; margin: auto;" />
+<img src="figures/intro-unnamed-chunk-29-1.png" style="display: block; margin: auto;" />
 
 # Let’s try it
 
@@ -532,4 +569,4 @@ head(data)
 ggplot(data, aes(auc,response)) + geom_point()
 ```
 
-<img src="figures/intro-unnamed-chunk-30-1.png" style="display: block; margin: auto;" />
+<img src="figures/intro-unnamed-chunk-31-1.png" style="display: block; margin: auto;" />

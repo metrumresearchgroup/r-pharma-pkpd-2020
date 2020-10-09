@@ -9,6 +9,7 @@ date: ""
 ```{r,echo=FALSE}
 knitr::opts_chunk$set(comment='.', message=FALSE, fig.path="figures/indo-", 
                       cache=TRUE, autodep=TRUE)
+options(mrgsolve.soloc="build", dplyr.summarise.inform = FALSE)
 ```
 
 ```{r}

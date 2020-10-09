@@ -14,24 +14,9 @@ Metrum Research Group
 
 ``` r
 library(tidyverse)
+theme_set(theme_bw() + theme(legend.position = "top"))
 library(mrgsolve)
 library(FME)
-```
-
-    ## Loading required package: deSolve
-
-    ## Loading required package: rootSolve
-
-    ## 
-    ## Attaching package: 'rootSolve'
-
-    ## The following object is masked from 'package:numDeriv':
-    ## 
-    ##     hessian
-
-    ## Loading required package: coda
-
-``` r
 options(mrgsolve.soloc = "build")
 ```
 
@@ -46,7 +31,7 @@ options(mrgsolve.soloc = "build")
 
 ``` r
 mod <- mread_cache("model/yoshikado.cpp")
-mod <- update(mod, end = 12, delta = 0.5, atol=1E-12,rtol=1E-12)
+mod <- update(mod, end = 12, delta = 0.025, atol=1E-12,rtol=1E-12)
 ```
 
 ## Load a data set
@@ -58,11 +43,10 @@ data <- filter(data, ID==2)
 dose <- filter(data, evid==1)
 ```
 
-Statin / cyclosporine
-DDI
+Statin / cyclosporine DDI
 
 ``` r
-mod %>% mrgsim_d(dose,delta=0.1) %>% plot(CP~time)
+mod %>% mrgsim_d(dose,delta=0.025) %>% plot(CP~time)
 ```
 
 <img src="figures/sensitivity_local-unnamed-chunk-4-1.png" style="display: block; margin: auto;" />
@@ -89,11 +73,11 @@ IMPORTANT to return a data frame of simulated data
 ## Pick parameters for sensitivity analysis
 
 These are the parameters that we were focusing on in the regression
-model. Adding `Vadi` here as a negative
-control.
+model. Adding `Vadi` here as a negative control.
 
 ``` r
-pars <- as.numeric(param(mod))[c("fbCLintall", "ikiu", "fbile", "ka", "ktr", "Vadi")]
+pars <- as.numeric(param(mod))
+pars <- pars[c("fbCLintall", "ikiu", "fbile", "ka", "ktr", "Vadi")]
 
 pars
 ```
@@ -127,16 +111,15 @@ locSens <- FME::sensFun(
 summary(locSens)
 ```
 
-    .            value scale    L1     L2   Mean    Min   Max  N
-    . fbCLintall 0.737 0.737 1.102 0.2437 -1.102 -1.773 0.000 25
-    . ikiu       0.012 0.012 0.539 0.1219 -0.539 -1.032 0.000 25
-    . fbile      0.330 0.330 0.587 0.1581  0.587  0.000 1.397 25
-    . ka         1.060 1.060 0.204 0.0555 -0.085 -0.495 0.720 25
-    . ktr        0.679 0.679 0.281 0.0803  0.206 -0.372 0.845 25
-    . Vadi       0.143 0.143 0.022 0.0057  0.011 -0.054 0.059 25
+    .            value scale    L1   L2   Mean    Min   Max   N
+    . fbCLintall 0.737 0.737 1.121 1.23 -1.121 -1.773 0.000 481
+    . ikiu       0.012 0.012 0.553 0.62 -0.553 -1.041 0.000 481
+    . fbile      0.330 0.330 0.583 0.78  0.583  0.000 1.397 481
+    . ka         1.060 1.060 0.226 0.31 -0.065 -0.496 0.989 481
+    . ktr        0.679 0.679 0.285 0.41  0.221 -0.372 0.847 481
+    . Vadi       0.143 0.143 0.023 0.03  0.011 -0.056 0.059 481
 
-**Summary
-plots**
+**Summary plots**
 
 ``` r
 plot(locSens, legpos="topright", lwd=2)

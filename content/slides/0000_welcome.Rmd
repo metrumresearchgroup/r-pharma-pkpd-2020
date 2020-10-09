@@ -1,7 +1,7 @@
 ---
 title: "A workflow in R for PK and PBPK modeling: simulation, optimization, and visualization"
 author: R/Pharma 2020 Workshop
-date: <blu>Kyle Baron & Devin Pastoor / MetrumRG</blu>
+date: <blu>Devin Pastoor & Kyle Baron //  MetrumRG</blu>
 ---
 
 ```{r, echo = FALSE, message = FALSE, warning = FALSE}
@@ -29,12 +29,11 @@ https://github.com/metrumresearchgroup/r-pharma-pkpd-2020
 
 - mrgsolve intro
 - The R "way" to do optimization (simple linear model)
-- Indomethacin PK model optimization
-- Pitavastatin / CsA DDI model optimization
-- Look at options for different optimizers
-- Local sensitivity analysis
-- Likelihood profile
-- Generate virtual population
+  - Indomethacin PK model optimization
+  - Pitavastatin / CsA DDI model optimization
+  - Look at options for different optimizers
+  - Local sensitivity analysis
+- Visualize and publish the model 
 
 # Single level of random effects
 
@@ -127,4 +126,5 @@ of random effects (no IIV)
 
 CRAN Task View: https://cran.r-project.org/web/views/Optimization.html
 
+See the vignette: `tools_optimization_methods.Rmd`
 
